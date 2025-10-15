@@ -1,7 +1,6 @@
 // Rich's To-Do (Sections) — Google Sheets backend
-// Works with index.html that has: toggleFormBtn, toggleCompletedBtn, addForm, list_* sections
 
-// ==== CONFIG ====
+// ===== CONFIG =====
 const API_URL = "https://script.google.com/macros/s/AKfycbx06bRQdwGsVW_g02JoIz-oTrfhysW6kyvdejwklNLhZbFgYo-SjoedPww/exec";
 
 const LABELS = {
@@ -11,7 +10,7 @@ const LABELS = {
   other: "Other",
 };
 
-// ==== DOM ====
+// ===== DOM =====
 const toggleFormBtn = document.getElementById("toggleFormBtn");
 const toggleCompletedBtn = document.getElementById("toggleCompletedBtn");
 const completedSection = document.getElementById("completedSection");
@@ -24,7 +23,6 @@ const listEls = {
   completed: document.getElementById("list_completed"),
 };
 
-// Form
 const addForm = document.getElementById("addForm");
 const f_title = document.getElementById("f_title");
 const f_owner = document.getElementById("f_owner");
@@ -34,50 +32,50 @@ const f_notes = document.getElementById("f_notes");
 const saveTaskBtn = document.getElementById("saveTaskBtn");
 const cancelFormBtn = document.getElementById("cancelFormBtn");
 
-// ==== State ====
+// ===== STATE / UTILS =====
 let tasks = [];
 const todayISO = () => new Date().toISOString().slice(0,10);
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+function show(el){ el.style.display = ""; }
+function hide(el){ el.style.display = "none"; }
+function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
-// ==== API helpers (Google Apps Script) ====
-// GET list
+// ===== API (Sheets via Apps Script) =====
 async function apiList() {
   const res = await fetch(`${API_URL}?action=list&v=${Date.now()}`);
   if (!res.ok) throw new Error("list failed");
   return res.json();
 }
-// POST add
+// Use text/plain to avoid CORS preflight (Apps Script still parses JSON body)
 async function apiAdd(task) {
   const res = await fetch(API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "add", task }),
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action: "add", task })
   });
   if (!res.ok) throw new Error("add failed");
   return res.json();
 }
-// POST toggle
 async function apiToggle(id) {
   const res = await fetch(API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "toggle", id }),
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action: "toggle", id })
   });
   if (!res.ok) throw new Error("toggle failed");
   return res.json();
 }
-// POST delete
 async function apiDelete(id) {
   const res = await fetch(API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "delete", id }),
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action: "delete", id })
   });
   if (!res.ok) throw new Error("delete failed");
   return res.json();
 }
 
-// ==== Render ====
+// ===== RENDER =====
 function renderOpenList(key) {
   const el = listEls[key];
   el.innerHTML = "";
@@ -162,12 +160,6 @@ function renderCompleted() {
   }
 }
 
-function escapeHtml(s) {
-  return String(s || "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  }[c]));
-}
-
 function renderAll() {
   renderOpenList("drawings");
   renderOpenList("write");
@@ -176,15 +168,18 @@ function renderAll() {
   if (completedSection.style.display !== "none") renderCompleted();
 }
 
-// ==== Load + Wire ====
+// ===== LOAD / REFRESH =====
 async function loadAndRender() {
-  tasks = await apiList();
+  try {
+    tasks = await apiList();
+  } catch (e) {
+    console.error(e);
+    tasks = [];
+  }
   renderAll();
 }
 
-// Form controls
-function show(el){ el.style.display = ""; }
-function hide(el){ el.style.display = "none"; }
+// ===== FORM HANDLERS =====
 function clearForm(){
   f_title.value = "";
   f_owner.value = "";
@@ -194,7 +189,7 @@ function clearForm(){
 }
 
 toggleFormBtn.onclick = () => {
-  if (addForm.style.display === "none" || addForm.style.display === "") {
+  if (!addForm.style.display || addForm.style.display === "none") {
     clearForm(); show(addForm);
   } else {
     hide(addForm);
@@ -202,8 +197,8 @@ toggleFormBtn.onclick = () => {
 };
 
 toggleCompletedBtn.onclick = async () => {
-  const isHidden = completedSection.style.display === "none" || completedSection.style.display === "";
-  if (isHidden) {
+  const hidden = !completedSection.style.display || completedSection.style.display === "none";
+  if (hidden) {
     show(completedSection);
     toggleCompletedBtn.textContent = "Hide Completed";
     renderCompleted();
@@ -218,24 +213,31 @@ cancelFormBtn.onclick = () => hide(addForm);
 saveTaskBtn.onclick = async () => {
   const title = (f_title.value || "").trim();
   if (!title) return alert("Please enter a task title.");
+
   const task = {
     id: uid(),
     title,
     owner: (f_owner.value || "").trim(),
-    category: f_category.value,           // drawings | write | review | other
+    category: f_category.value,       // drawings | write | review | other
     added: f_added.value || todayISO(),
     notes: (f_notes.value || "").trim(),
     done: false,
     completed: "",
   };
-  await apiAdd(task);
-  hide(addForm);
-  await loadAndRender();
+
+  try {
+    await apiAdd(task);
+    hide(addForm);
+    await loadAndRender();
+  } catch (e) {
+    console.error(e);
+    alert("Could not save task. Check network/permissions and try again.");
+  }
 };
 
-// Poll every 15s so Rich’s smartboard stays up to date
+// Poll every 15s so the smartboard stays fresh
 setInterval(loadAndRender, 15000);
 
-// Initialize
+// Init
 f_added.value = todayISO();
 loadAndRender();
