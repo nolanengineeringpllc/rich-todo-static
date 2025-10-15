@@ -2,7 +2,7 @@
 
 // ===== CONFIG =====
 // Replace with YOUR fresh Apps Script web app URL:
-const API_URL = "PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE";
+const API_URL = "https://script.google.com/macros/s/AKfycbzD6OBdvGw6SW_g024ot2_k-OLiJzaOr-srfhyGWSrdyrj6swQLNzJb2FgvD-5jOcdPww/exec";
 
 const LABELS = {
   drawings: "Drawings to Review",
@@ -236,3 +236,4 @@ setInterval(loadAndRender, 15000);
 // Init
 f_added.value = todayISO();
 loadAndRender();
+
