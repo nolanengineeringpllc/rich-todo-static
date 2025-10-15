@@ -1,7 +1,8 @@
-// Rich's To-Do (Sections) — Google Sheets backend (CORS-safe writes)
+// Rich's To-Do (Sections) — stable client with real CORS support
 
 // ===== CONFIG =====
-const API_URL = "https://script.google.com/macros/s/AKfycbx06bRQdwGsVW_g02JoIz-oTrfhysW6kyvdejwklNLhZbFgYo-SjoedPww/exec";
+// Replace with YOUR fresh Apps Script web app URL:
+const API_URL = "PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE";
 
 const LABELS = {
   drawings: "Drawings to Review",
@@ -14,7 +15,6 @@ const LABELS = {
 const toggleFormBtn = document.getElementById("toggleFormBtn");
 const toggleCompletedBtn = document.getElementById("toggleCompletedBtn");
 const completedSection = document.getElementById("completedSection");
-
 const listEls = {
   drawings: document.getElementById("list_drawings"),
   write: document.getElementById("list_write"),
@@ -22,7 +22,6 @@ const listEls = {
   other: document.getElementById("list_other"),
   completed: document.getElementById("list_completed"),
 };
-
 const addForm = document.getElementById("addForm");
 const f_title = document.getElementById("f_title");
 const f_owner = document.getElementById("f_owner");
@@ -40,35 +39,38 @@ function show(el){ el.style.display = ""; }
 function hide(el){ el.style.display = "none"; }
 function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
-// ===== API (Sheets via Apps Script) =====
-
-// READ (normal GET; we need the data back)
+// ===== API (normal CORS, server sends headers) =====
 async function apiList() {
-  const res = await fetch(`${API_URL}?action=list&v=${Date.now()}`);
+  const res = await fetch(`${API_URL}?action=list&v=${Date.now()}`, { method: "GET" });
   if (!res.ok) throw new Error("list failed");
   return res.json();
 }
-
-// WRITE helpers — use no-cors so the browser doesn’t block on CORS.
-// We can't read the response (it will be "opaque"), so we just fire-and-forget,
-// then re-fetch the list to show the latest.
-async function apiWrite(payload) {
-  await fetch(API_URL, {
+async function apiAdd(task) {
+  const res = await fetch(API_URL, {
     method: "POST",
-    mode: "no-cors",                // <— key bit to avoid CORS preflight/blocks
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify(payload)
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "add", task })
   });
+  if (!res.ok) throw new Error("add failed");
+  return res.json();
 }
-
-function apiAdd(task) {
-  return apiWrite({ action: "add", task });
+async function apiToggle(id) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "toggle", id })
+  });
+  if (!res.ok) throw new Error("toggle failed");
+  return res.json();
 }
-function apiToggle(id) {
-  return apiWrite({ action: "toggle", id });
-}
-function apiDelete(id) {
-  return apiWrite({ action: "delete", id });
+async function apiDelete(id) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "delete", id })
+  });
+  if (!res.ok) throw new Error("delete failed");
+  return res.json();
 }
 
 // ===== RENDER =====
@@ -107,17 +109,13 @@ function renderOpenList(key) {
       </div>
     `;
     row.querySelector('[data-action="done"]').onclick = async () => {
-      try {
-        await apiToggle(t.id);
-        await loadAndRender();
-      } catch (e) { console.error(e); }
+      await apiToggle(t.id);
+      await loadAndRender();
     };
     row.querySelector('[data-action="delete"]').onclick = async () => {
       if (confirm("Delete this task?")) {
-        try {
-          await apiDelete(t.id);
-          await loadAndRender();
-        } catch (e) { console.error(e); }
+        await apiDelete(t.id);
+        await loadAndRender();
       }
     };
     el.appendChild(row);
@@ -187,7 +185,6 @@ function clearForm(){
   f_added.value = todayISO();
   f_notes.value = "";
 }
-
 toggleFormBtn.onclick = () => {
   if (!addForm.style.display || addForm.style.display === "none") {
     clearForm(); show(addForm);
@@ -195,8 +192,7 @@ toggleFormBtn.onclick = () => {
     hide(addForm);
   }
 };
-
-toggleCompletedBtn.onclick = async () => {
+toggleCompletedBtn.onclick = () => {
   const hidden = !completedSection.style.display || completedSection.style.display === "none";
   if (hidden) {
     show(completedSection);
@@ -207,7 +203,6 @@ toggleCompletedBtn.onclick = async () => {
     toggleCompletedBtn.textContent = "Show Completed";
   }
 };
-
 cancelFormBtn.onclick = () => hide(addForm);
 
 saveTaskBtn.onclick = async () => {
@@ -218,7 +213,7 @@ saveTaskBtn.onclick = async () => {
     id: uid(),
     title,
     owner: (f_owner.value || "").trim(),
-    category: f_category.value,       // drawings | write | review | other
+    category: f_category.value,
     added: f_added.value || todayISO(),
     notes: (f_notes.value || "").trim(),
     done: false,
@@ -226,17 +221,16 @@ saveTaskBtn.onclick = async () => {
   };
 
   try {
-    await apiAdd(task);        // fire-and-forget write
+    await apiAdd(task);
     hide(addForm);
-    // give Sheets a moment to append, then reload
-    setTimeout(loadAndRender, 600);
+    await loadAndRender();
   } catch (e) {
     console.error(e);
     alert("Could not save task. Check network/permissions and try again.");
   }
 };
 
-// Poll every 15s so the smartboard stays fresh
+// Auto-refresh for the smartboard
 setInterval(loadAndRender, 15000);
 
 // Init
