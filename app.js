@@ -1,16 +1,18 @@
-// Shared To-Do App (with categories and timestamps)
+// Rich's Shared To-Do App (Live Google Sheets Backend)
 const categories = ["Drawings to Review", "Reports to Write", "Reports to Review", "Other"];
-const tasksContainer = document.getElementById("tasks");
+const taskContainer = document.getElementById("tasks");
 const addBtn = document.getElementById("addBtn");
 const showCompletedBtn = document.getElementById("showCompletedBtn");
 
-const API_URL = "https://raw.githubusercontent.com/nolanengineeringpllc/rich-todo-static/main/api/tasks.json";
+const API_URL = "https://script.google.com/macros/s/AKfycbx06bRQdwGsVW_g02JoIz-oTrfhysW6kyvdejwklNLhZbFgYo-SjoedPww/exec";
+
 let tasks = [];
 let showCompleted = false;
 
+// Fetch tasks from Google Sheets backend
 async function fetchTasks() {
   try {
-    const res = await fetch(API_URL + "?t=" + new Date().getTime());
+    const res = await fetch(API_URL + "?v=" + new Date().getTime());
     tasks = await res.json();
     renderTasks();
   } catch (err) {
@@ -20,73 +22,87 @@ async function fetchTasks() {
   }
 }
 
+// Render tasks into categories
 function renderTasks() {
-  tasksContainer.innerHTML = "";
-  categories.forEach((category) => {
+  taskContainer.innerHTML = "";
+  categories.forEach(category => {
     const section = document.createElement("div");
     section.className = "category";
     section.innerHTML = `<h3>${category}</h3>`;
-    const filtered = tasks.filter(t => t.category === category && t.done === showCompleted);
+
+    const filtered = tasks.filter(t => t.category === category && (showCompleted || !t.done));
     if (filtered.length === 0) {
-      const none = document.createElement("p");
-      none.innerText = "No tasks yet.";
-      section.appendChild(none);
+      section.innerHTML += `<p class="empty">No tasks yet.</p>`;
     } else {
-      filtered.forEach((task, i) => {
+      filtered.forEach((t, i) => {
         const div = document.createElement("div");
-        div.className = "task";
+        div.className = "task" + (t.done ? " done" : "");
         div.innerHTML = `
-          <strong>${task.title}</strong><br>
-          <small>By: ${task.owner} | Added: ${task.dateAdded}</small>
-          ${task.done ? `<br><small>Completed: ${task.dateCompleted}</small>` : ""}
-          <button>${task.done ? "Undo" : "✔"}</button>
+          <div>
+            <strong>${t.title}</strong> — <em>${t.owner}</em><br>
+            <small>Added: ${t.added}${t.done ? " | Completed: " + t.completed : ""}</small>
+            ${t.notes ? `<p>${t.notes}</p>` : ""}
+          </div>
+          <button>${t.done ? "Undo" : "Done"}</button>
         `;
-        div.querySelector("button").onclick = () => toggleTask(task);
+        div.querySelector("button").onclick = () => toggleDone(i);
         section.appendChild(div);
       });
     }
-    tasksContainer.appendChild(section);
+
+    taskContainer.appendChild(section);
   });
 }
 
-async function toggleTask(task) {
-  task.done = !task.done;
-  task.dateCompleted = task.done ? new Date().toLocaleString() : null;
-  await saveTasks();
-  fetchTasks();
-}
-
-async function addTask() {
+// Add new task
+addBtn.onclick = async () => {
   const title = prompt("Task description:");
   if (!title) return;
-  const category = prompt("Enter category (Drawings to Review, Reports to Write, Reports to Review, Other):");
-  if (!categories.includes(category)) return alert("Invalid category.");
+
   const owner = prompt("Who is this for?");
-  const task = {
-    title,
-    category,
-    owner,
-    done: false,
-    dateAdded: new Date().toLocaleString(),
-    dateCompleted: null,
-  };
-  tasks.push(task);
-  await saveTasks();
-  fetchTasks();
+  const category = prompt("Category (Drawings to Review, Reports to Write, Reports to Review, Other):");
+  const notes = prompt("Additional notes (optional):");
+  const added = new Date().toLocaleDateString();
+
+  const task = { title, owner, category, added, notes, done: false, completed: "" };
+
+  try {
+    await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify(task),
+      headers: { "Content-Type": "application/json" }
+    });
+    await fetchTasks();
+  } catch (err) {
+    console.error("Error adding task:", err);
+  }
+};
+
+// Toggle completion
+async function toggleDone(index) {
+  const task = tasks[index];
+  task.done = !task.done;
+  task.completed = task.done ? new Date().toLocaleDateString() : "";
+
+  try {
+    await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify(task),
+      headers: { "Content-Type": "application/json" }
+    });
+    await fetchTasks();
+  } catch (err) {
+    console.error("Error updating task:", err);
+  }
 }
 
-async function saveTasks() {
-  // NOTE: This method cannot directly write to GitHub.
-  // To make live edits, we’ll connect a small Vercel function next.
-  console.log("Saving tasks locally for now.");
-  localStorage.setItem("tasks", JSON.stringify(tasks));
-}
-
-addBtn.onclick = addTask;
+// Toggle completed visibility
 showCompletedBtn.onclick = () => {
   showCompleted = !showCompleted;
-  showCompletedBtn.innerText = showCompleted ? "Show Active" : "Show Completed";
+  showCompletedBtn.textContent = showCompleted ? "Hide Completed" : "Show Completed";
   renderTasks();
 };
 
+// Initialize
 fetchTasks();
+
