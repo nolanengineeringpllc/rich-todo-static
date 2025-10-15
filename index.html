@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rich’s To-Do (Sections)</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <div class="title">Rich’s To-Do</div>
+        <div class="subtitle">Organized by category • Tracks added & completed dates</div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="toggleFormBtn">＋ Add Task</button>
+        <button class="btn" id="toggleCompletedBtn">Show Completed</button>
+        <button class="btn" onclick="window.print()">🖨 Print</button>
+      </div>
+    </div>
+
+    <!-- Add Task Form (hidden by default) -->
+    <div id="addForm" class="card content" style="display:none">
+      <h3 style="margin-top:0">Add a Task</h3>
+      <div class="form-grid">
+        <label><span>Task title</span>
+          <input id="f_title" class="input" placeholder="What needs to get done?" />
+        </label>
+        <label><span>Project owner</span>
+          <input id="f_owner" class="input" placeholder="e.g., Rich" />
+        </label>
+        <label><span>Category</span>
+          <select id="f_category" class="select">
+            <option value="drawings">Drawings to Review</option>
+            <option value="write">Reports to Write</option>
+            <option value="review">Reports to Review</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label><span>Date added</span>
+          <input id="f_added" type="date" class="input" />
+        </label>
+      </div>
+      <label style="display:block;margin-top:10px"><span>Notes (optional)</span>
+        <textarea id="f_notes" class="input" placeholder="Context or details…"></textarea>
+      </label>
+      <div class="form-actions">
+        <button class="btn" id="saveTaskBtn">Save Task</button>
+        <button class="btn ghost" id="cancelFormBtn">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Sections -->
+    <div class="section">
+      <h2 class="section-title">Drawings to Review</h2>
+      <div id="list_drawings" class="tasks"></div>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">Reports to Write</h2>
+      <div id="list_write" class="tasks"></div>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">Reports to Review</h2>
+      <div id="list_review" class="tasks"></div>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">Other</h2>
+      <div id="list_other" class="tasks"></div>
+    </div>
+
+    <!-- Completed (hidden by default, toggled with button) -->
+    <div id="completedSection" class="section" style="display:none">
+      <h2 class="section-title">Completed</h2>
+      <div id="list_completed" class="tasks"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

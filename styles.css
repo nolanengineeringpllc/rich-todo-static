@@ -1,0 +1,65 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f9fafb;
+  margin: 0;
+  padding: 0;
+  color: #111;
+}
+.container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.title {
+  font-size: 32px;
+  font-weight: bold;
+  color: #065f46;
+}
+.subtitle {
+  color: #6b7280;
+  font-size: 14px;
+}
+.btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.btn:hover {
+  background: #059669;
+}
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.task {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f3f4f6;
+  border-radius: 8px;
+}
+.task.done {
+  text-decoration: line-through;
+  color: #6b7280;
+  background: #e5e7eb;
+}
+input, select {
+  padding: 8px;
+  margin: 4px;
+  font-size: 14px;
+}
