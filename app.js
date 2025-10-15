@@ -1,4 +1,4 @@
-// Rich's To-Do (Sections) — Google Sheets backend
+// Rich's To-Do (Sections) — Google Sheets backend (CORS-safe writes)
 
 // ===== CONFIG =====
 const API_URL = "https://script.google.com/macros/s/AKfycbx06bRQdwGsVW_g02JoIz-oTrfhysW6kyvdejwklNLhZbFgYo-SjoedPww/exec";
@@ -41,38 +41,34 @@ function hide(el){ el.style.display = "none"; }
 function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
 // ===== API (Sheets via Apps Script) =====
+
+// READ (normal GET; we need the data back)
 async function apiList() {
   const res = await fetch(`${API_URL}?action=list&v=${Date.now()}`);
   if (!res.ok) throw new Error("list failed");
   return res.json();
 }
-// Use text/plain to avoid CORS preflight (Apps Script still parses JSON body)
-async function apiAdd(task) {
-  const res = await fetch(API_URL, {
+
+// WRITE helpers — use no-cors so the browser doesn’t block on CORS.
+// We can't read the response (it will be "opaque"), so we just fire-and-forget,
+// then re-fetch the list to show the latest.
+async function apiWrite(payload) {
+  await fetch(API_URL, {
     method: "POST",
+    mode: "no-cors",                // <— key bit to avoid CORS preflight/blocks
     headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ action: "add", task })
+    body: JSON.stringify(payload)
   });
-  if (!res.ok) throw new Error("add failed");
-  return res.json();
 }
-async function apiToggle(id) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ action: "toggle", id })
-  });
-  if (!res.ok) throw new Error("toggle failed");
-  return res.json();
+
+function apiAdd(task) {
+  return apiWrite({ action: "add", task });
 }
-async function apiDelete(id) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ action: "delete", id })
-  });
-  if (!res.ok) throw new Error("delete failed");
-  return res.json();
+function apiToggle(id) {
+  return apiWrite({ action: "toggle", id });
+}
+function apiDelete(id) {
+  return apiWrite({ action: "delete", id });
 }
 
 // ===== RENDER =====
@@ -111,13 +107,17 @@ function renderOpenList(key) {
       </div>
     `;
     row.querySelector('[data-action="done"]').onclick = async () => {
-      await apiToggle(t.id);
-      await loadAndRender();
+      try {
+        await apiToggle(t.id);
+        await loadAndRender();
+      } catch (e) { console.error(e); }
     };
     row.querySelector('[data-action="delete"]').onclick = async () => {
       if (confirm("Delete this task?")) {
-        await apiDelete(t.id);
-        await loadAndRender();
+        try {
+          await apiDelete(t.id);
+          await loadAndRender();
+        } catch (e) { console.error(e); }
       }
     };
     el.appendChild(row);
@@ -173,7 +173,7 @@ async function loadAndRender() {
   try {
     tasks = await apiList();
   } catch (e) {
-    console.error(e);
+    console.error("List failed:", e);
     tasks = [];
   }
   renderAll();
@@ -226,9 +226,10 @@ saveTaskBtn.onclick = async () => {
   };
 
   try {
-    await apiAdd(task);
+    await apiAdd(task);        // fire-and-forget write
     hide(addForm);
-    await loadAndRender();
+    // give Sheets a moment to append, then reload
+    setTimeout(loadAndRender, 600);
   } catch (e) {
     console.error(e);
     alert("Could not save task. Check network/permissions and try again.");
