@@ -1,10 +1,10 @@
-/* =========================
-   Rich's To-Do — Frontend
-   ========================= */
+// ====== Rich's To-Do client (v106) ======
+console.log("ToDo client v106");
 
-/* --- CONFIG (your live Web App URL) --- */
-const API_URL = "https://script.google.com/macros/s/AKfycbzD6OBdvGw6SW_g024ot2_k-OLiJzaOr-srfhyGWSrdyrj6swQLNzJb2FgvD-5jOcdPww/exec";
+// 1) Put YOUR fresh Web App URL here (the one you just deployed)
+const API_URL = "https://script.google.com/macros/s/AKfycbzD6OBdvGw6SW_g024ot2_k-OLiJzaOr-srfhyGWSrdyrj6swQLNzJb2FgvD-5jOcdPww/exec";  // e.g. https://script.google.com/macros/s/…/exec
 
+// 2) Labels for sections
 const LABELS = {
   drawings: "Drawings to Review",
   write: "Reports to Write",
@@ -12,7 +12,7 @@ const LABELS = {
   other: "Other",
 };
 
-/* --- DOM --- */
+// ===== DOM =====
 const toggleFormBtn       = document.getElementById("toggleFormBtn");
 const toggleCompletedBtn  = document.getElementById("toggleCompletedBtn");
 const completedSection    = document.getElementById("completedSection");
@@ -34,43 +34,61 @@ const f_notes     = document.getElementById("f_notes");
 const saveTaskBtn = document.getElementById("saveTaskBtn");
 const cancelFormBtn = document.getElementById("cancelFormBtn");
 
-/* --- STATE/UTILS --- */
+// ===== STATE/UTIL =====
 let tasks = [];
 const todayISO = () => new Date().toISOString().slice(0,10);
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
-function show(el){ el.style.display = ""; }
-function hide(el){ el.style.display = "none"; }
-function escapeHtml(s){
-  return String(s || "").replace(/[&<>"']/g, c => (
-    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]
-  ));
-}
+const escapeHtml = s => String(s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-/* --- API (send text/plain to avoid CORS preflight) --- */
-async function api(action, payload = {}) {
+// ===== API (always JSON; POST as text/plain) =====
+async function apiGet(params) {
+  const url = API_URL + (params ? ("?" + new URLSearchParams(params)) : "");
+  const res = await fetch(url, { method: "GET" });
+  const txt = await res.text();
+  try {
+    return JSON.parse(txt);
+  } catch (e) {
+    console.error("GET non-JSON:", txt);
+    throw new Error("Backend returned non-JSON");
+  }
+}
+async function apiPost(payload) {
   const res = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action, ...payload })
+    body: JSON.stringify(payload)
   });
-
-  let json;
-  try { json = await res.json(); }
-  catch { json = { ok: false, message: "Server returned invalid JSON" }; }
-
-  if (!json.ok) {
-    const msg = json.message || "Request failed";
-    throw new Error(msg);
+  const txt = await res.text();
+  try {
+    return JSON.parse(txt);
+  } catch (e) {
+    console.error("POST non-JSON:", txt);
+    throw new Error("Backend returned non-JSON");
   }
-  return json.data;
 }
 
-const apiList   = ()        => api("list");
-const apiAdd    = (task)    => api("add",    { task });
-const apiToggle = (id)      => api("toggle", { id });
-const apiDelete = (id)      => api("delete", { id });
+async function listTasks() {
+  const j = await apiGet({ action: "list" });
+  if (!j.ok) throw new Error(j.error || "List failed");
+  return j.data || [];
+}
+async function addTask(task) {
+  const j = await apiPost({ action: "add", task });
+  if (!j.ok) throw new Error(j.error || "Add failed");
+  return j.data;
+}
+async function toggleTask(id) {
+  const j = await apiPost({ action: "toggle", id });
+  if (!j.ok) throw new Error(j.error || "Toggle failed");
+  return j.data;
+}
+async function deleteTask(id) {
+  const j = await apiPost({ action: "delete", id });
+  if (!j.ok) throw new Error(j.error || "Delete failed");
+  return j.data;
+}
 
-/* --- RENDER --- */
+// ===== RENDER =====
 function renderOpenList(key) {
   const el = listEls[key];
   el.innerHTML = "";
@@ -79,7 +97,7 @@ function renderOpenList(key) {
     .filter(t => !t.done && t.category === key)
     .sort((a,b) => String(a.added).localeCompare(String(b.added)));
 
-  if (items.length === 0) {
+  if (!items.length) {
     const empty = document.createElement("div");
     empty.className = "task";
     empty.style.opacity = ".6";
@@ -88,7 +106,7 @@ function renderOpenList(key) {
     return;
   }
 
-  for (const t of items) {
+  items.forEach(t => {
     const row = document.createElement("div");
     row.className = "task";
     row.innerHTML = `
@@ -105,20 +123,17 @@ function renderOpenList(key) {
         <button class="btn" data-action="delete" style="margin-left:6px;background:#ef4444">🗑</button>
       </div>
     `;
-
     row.querySelector('[data-action="done"]').onclick = async () => {
-      try { await apiToggle(t.id); await loadAndRender(); }
-      catch (e) { alert("Toggle failed: " + e.message); }
+      try { await toggleTask(t.id); await loadAndRender(); }
+      catch (e) { alert("Could not toggle: " + e.message); }
     };
-
     row.querySelector('[data-action="delete"]').onclick = async () => {
       if (!confirm("Delete this task?")) return;
-      try { await apiDelete(t.id); await loadAndRender(); }
-      catch (e) { alert("Delete failed: " + e.message); }
+      try { await deleteTask(t.id); await loadAndRender(); }
+      catch (e) { alert("Could not delete: " + e.message); }
     };
-
     el.appendChild(row);
-  }
+  });
 }
 
 function renderCompleted() {
@@ -129,7 +144,7 @@ function renderCompleted() {
     .filter(t => t.done)
     .sort((a,b) => String(b.completed).localeCompare(String(a.completed)));
 
-  if (items.length === 0) {
+  if (!items.length) {
     const empty = document.createElement("div");
     empty.className = "task";
     empty.style.opacity = ".6";
@@ -138,7 +153,7 @@ function renderCompleted() {
     return;
   }
 
-  for (const t of items) {
+  items.forEach(t => {
     const row = document.createElement("div");
     row.className = "task done";
     row.innerHTML = `
@@ -154,7 +169,7 @@ function renderCompleted() {
       </div>
     `;
     el.appendChild(row);
-  }
+  });
 }
 
 function renderAll() {
@@ -165,19 +180,14 @@ function renderAll() {
   if (completedSection.style.display !== "none") renderCompleted();
 }
 
-/* --- LOAD/REFRESH --- */
+// ===== LOAD =====
 async function loadAndRender() {
-  try {
-    tasks = await apiList();
-  } catch (e) {
-    console.error(e);
-    tasks = [];
-    alert("Could not load tasks: " + e.message);
-  }
+  try { tasks = await listTasks(); }
+  catch (e) { console.error(e); tasks = []; alert("Could not load tasks: " + e.message); }
   renderAll();
 }
 
-/* --- FORM HANDLERS --- */
+// ===== FORM =====
 function clearForm() {
   f_title.value = "";
   f_owner.value = "";
@@ -185,33 +195,27 @@ function clearForm() {
   f_added.value = todayISO();
   f_notes.value = "";
 }
-
 toggleFormBtn.onclick = () => {
-  if (!addForm.style.display || addForm.style.display === "none") {
-    clearForm(); show(addForm);
-  } else {
-    hide(addForm);
-  }
+  if (addForm.style.display === "none" || !addForm.style.display) {
+    clearForm(); addForm.style.display = "";
+  } else addForm.style.display = "none";
 };
+cancelFormBtn.onclick = () => addForm.style.display = "none";
 
 toggleCompletedBtn.onclick = () => {
-  const hidden = !completedSection.style.display || completedSection.style.display === "none";
+  const hidden = (completedSection.style.display === "none" || !completedSection.style.display);
   if (hidden) {
-    show(completedSection);
+    completedSection.style.display = "";
     toggleCompletedBtn.textContent = "Hide Completed";
     renderCompleted();
   } else {
-    hide(completedSection);
+    completedSection.style.display = "none";
     toggleCompletedBtn.textContent = "Show Completed";
   }
 };
-
-cancelFormBtn.onclick = () => hide(addForm);
-
 saveTaskBtn.onclick = async () => {
   const title = (f_title.value || "").trim();
   if (!title) return alert("Please enter a task title.");
-
   const task = {
     id: uid(),
     title,
@@ -220,21 +224,18 @@ saveTaskBtn.onclick = async () => {
     added: f_added.value || todayISO(),
     notes: (f_notes.value || "").trim(),
     done: false,
-    completed: "",
+    completed: ""
   };
-
   try {
-    await apiAdd(task);
-    hide(addForm);
+    await addTask(task);
+    addForm.style.display = "none";
     await loadAndRender();
   } catch (e) {
-    alert("Could not save task: " + e.message);
+    alert("Could not save task. " + e.message);
   }
 };
 
-/* --- SMARTBOARD AUTO REFRESH --- */
-setInterval(loadAndRender, 15000);
-
-/* --- INIT --- */
+// Init
 f_added.value = todayISO();
+setInterval(loadAndRender, 15000); // auto-refresh for smartboard
 loadAndRender();
