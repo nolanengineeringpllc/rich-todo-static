@@ -1,54 +1,55 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nolan Engineering • To-Do Board</title>
-  <link rel="stylesheet" href="./styles.css"/>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
+
 <body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <h1>Nolan Engineering • To-Do Board</h1>
-      <span class="badge">Live</span>
+  <header>
+    <h1>Nolan Engineering • To-Do Board <span class="badge">Live</span></h1>
+    <div class="actions">
+      <button id="printBtn" class="btn">🖨 Print</button>
+      <button id="checkBtn" class="btn">✅ Backend Check</button>
     </div>
   </header>
 
-  <main class="container">
-    <!-- Add Task -->
+  <main>
+    <!-- Add a Task -->
     <section class="card">
       <h2>Add a Task</h2>
-      <form id="taskForm" class="form-grid">
-        <label class="field">
-          <span class="label">Title <span class="req">*</span></span>
-          <input type="text" id="title" placeholder="e.g., Review steel shop drawings" required/>
-        </label>
+      <form id="taskForm">
+        <div class="field-grid">
+          <label>
+            Title *
+            <input id="title" type="text" placeholder="e.g., Review steel shop drawings" required />
+          </label>
+          <label>
+            Owner
+            <input id="owner" type="text" placeholder="e.g., Richard" />
+          </label>
+          <label>
+            Category
+            <select id="category">
+              <option value="Drawings to Review">Drawings to Review</option>
+              <option value="Reports to Write">Reports to Write</option>
+              <option value="Reports to Review">Reports to Review</option>
+              <option value="Other" selected>Other</option>
+            </select>
+          </label>
+          <label>
+            Notes
+            <textarea id="notes" placeholder="Optional notes..."></textarea>
+          </label>
+        </div>
 
-        <label class="field">
-          <span class="label">Owner</span>
-          <input type="text" id="owner" placeholder="e.g., Richard"/>
-        </label>
-
-        <label class="field">
-          <span class="label">Category</span>
-          <select id="category">
-            <option value="Drawings to Review">Drawings to Review</option>
-            <option value="Reports to Write">Reports to Write</option>
-            <option value="Reports to Review">Reports to Review</option>
-            <option value="Other" selected>Other</option>
-          </select>
-        </label>
-
-        <label class="field field-notes">
-          <span class="label">Notes</span>
-          <textarea id="notes" rows="2" placeholder="Optional notes…"></textarea>
-        </label>
-
-        <div class="chips">
+        <div class="chip-bar">
           <button type="button" class="chip" data-cat="Drawings to Review">Drawings to Review</button>
           <button type="button" class="chip" data-cat="Reports to Write">Reports to Write</button>
           <button type="button" class="chip" data-cat="Reports to Review">Reports to Review</button>
-          <button type="button" class="chip" data-cat="Other">Other</button>
+          <button type="button" class="chip active" data-cat="Other">Other</button>
         </div>
 
         <div class="actions-row">
@@ -58,41 +59,41 @@
       </form>
     </section>
 
-    <!-- 4-column board -->
-    <section class="board card">
+    <!-- 4-Column Board -->
+    <section class="board">
       <div class="board-grid">
         <div class="col">
           <h3>Drawings to Review</h3>
-          <ul id="col-drawings" class="list"></ul>
+          <ul id="col-drawings" class="col-list"></ul>
         </div>
         <div class="col">
           <h3>Reports to Write</h3>
-          <ul id="col-write" class="list"></ul>
+          <ul id="col-write" class="col-list"></ul>
         </div>
         <div class="col">
           <h3>Reports to Review</h3>
-          <ul id="col-review" class="list"></ul>
+          <ul id="col-review" class="col-list"></ul>
         </div>
         <div class="col">
           <h3>Other</h3>
-          <ul id="col-other" class="list"></ul>
+          <ul id="col-other" class="col-list"></ul>
         </div>
       </div>
     </section>
 
-    <!-- Completed drawer -->
+    <!-- Completed Tasks -->
     <details class="card">
-      <summary>Completed</summary>
-      <ul id="completed" class="list list-completed"></ul>
+      <summary>✅ Completed</summary>
+      <ul id="completed" class="col-list"></ul>
     </details>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">
-      <small>© Nolan Engineering, PLLC</small>
-    </div>
+  <footer>
+    © Nolan Engineering, PLLC
   </footer>
 
+  <!-- Script loading order -->
+  <script src="./config.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
