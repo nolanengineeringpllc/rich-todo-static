@@ -1,9 +1,11 @@
-// Rich's To-Do (Sections) — stable client with real CORS support
+// ===============================
+// Rich's To-Do (Sections) – Client
+// ===============================
 
-// ===== CONFIG =====
-// Replace with YOUR fresh Apps Script web app URL:
+// ---- Backend endpoint (your fresh Apps Script Web App URL)
 const API_URL = "https://script.google.com/macros/s/AKfycbzD6OBdvGw6SW_g024ot2_k-OLiJzaOr-srfhyGWSrdyrj6swQLNzJb2FgvD-5jOcdPww/exec";
 
+// ---- Section labels (display only)
 const LABELS = {
   drawings: "Drawings to Review",
   write: "Reports to Write",
@@ -11,10 +13,11 @@ const LABELS = {
   other: "Other",
 };
 
-// ===== DOM =====
+// ---- DOM
 const toggleFormBtn = document.getElementById("toggleFormBtn");
 const toggleCompletedBtn = document.getElementById("toggleCompletedBtn");
 const completedSection = document.getElementById("completedSection");
+
 const listEls = {
   drawings: document.getElementById("list_drawings"),
   write: document.getElementById("list_write"),
@@ -22,6 +25,7 @@ const listEls = {
   other: document.getElementById("list_other"),
   completed: document.getElementById("list_completed"),
 };
+
 const addForm = document.getElementById("addForm");
 const f_title = document.getElementById("f_title");
 const f_owner = document.getElementById("f_owner");
@@ -31,56 +35,69 @@ const f_notes = document.getElementById("f_notes");
 const saveTaskBtn = document.getElementById("saveTaskBtn");
 const cancelFormBtn = document.getElementById("cancelFormBtn");
 
-// ===== STATE / UTILS =====
+// ---- State & helpers
 let tasks = [];
-const todayISO = () => new Date().toISOString().slice(0,10);
+const todayISO = () => new Date().toISOString().slice(0, 10);
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
-function show(el){ el.style.display = ""; }
-function hide(el){ el.style.display = "none"; }
-function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+const show = el => (el.style.display = "");
+const hide = el => (el.style.display = "none");
+const escapeHtml = s =>
+  String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-// ===== API (normal CORS, server sends headers) =====
+// ======================
+// API (GET + no-cors POST)
+// ======================
+
+// List (GET returns JSON)
 async function apiList() {
-  const res = await fetch(`${API_URL}?action=list&v=${Date.now()}`, { method: "GET" });
+  const res = await fetch(`${API_URL}?action=list&_=${Date.now()}`, { method: "GET" });
   if (!res.ok) throw new Error("list failed");
   return res.json();
 }
+
+// Add / Toggle / Delete use no-cors to avoid preflight; we then reload state.
+// (Apps Script updates the sheet; we read fresh via apiList afterwards.)
+
 async function apiAdd(task) {
-  const res = await fetch(API_URL, {
+  await fetch(API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "add", task })
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action: "add", task }),
   });
-  if (!res.ok) throw new Error("add failed");
-  return res.json();
-}
-async function apiToggle(id) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "toggle", id })
-  });
-  if (!res.ok) throw new Error("toggle failed");
-  return res.json();
-}
-async function apiDelete(id) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "delete", id })
-  });
-  if (!res.ok) throw new Error("delete failed");
-  return res.json();
+  return { ok: true };
 }
 
-// ===== RENDER =====
+async function apiToggle(id) {
+  await fetch(API_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action: "toggle", id }),
+  });
+  return { ok: true };
+}
+
+async function apiDelete(id) {
+  await fetch(API_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action: "delete", id }),
+  });
+  return { ok: true };
+}
+
+// ==============
+// Render helpers
+// ==============
 function renderOpenList(key) {
   const el = listEls[key];
   el.innerHTML = "";
 
   const items = tasks
     .filter(t => !t.done && t.category === key)
-    .sort((a,b) => String(a.added).localeCompare(String(b.added)));
+    .sort((a, b) => String(a.added).localeCompare(String(b.added)));
 
   if (items.length === 0) {
     const empty = document.createElement("div");
@@ -104,8 +121,8 @@ function renderOpenList(key) {
         </div>
       </div>
       <div>
-        <button class="btn" data-action="done">✔</button>
-        <button class="btn" data-action="delete" style="margin-left:6px;background:#ef4444">🗑</button>
+        <button class="btn" data-action="done" title="Mark complete">✔</button>
+        <button class="btn" data-action="delete" style="margin-left:6px;background:#ef4444" title="Delete">🗑</button>
       </div>
     `;
     row.querySelector('[data-action="done"]').onclick = async () => {
@@ -128,7 +145,7 @@ function renderCompleted() {
 
   const items = tasks
     .filter(t => t.done)
-    .sort((a,b) => String(b.completed).localeCompare(String(a.completed)));
+    .sort((a, b) => String(b.completed).localeCompare(String(a.completed)));
 
   if (items.length === 0) {
     const empty = document.createElement("div");
@@ -166,7 +183,9 @@ function renderAll() {
   if (completedSection.style.display !== "none") renderCompleted();
 }
 
-// ===== LOAD / REFRESH =====
+// ==============
+// Load & refresh
+// ==============
 async function loadAndRender() {
   try {
     tasks = await apiList();
@@ -177,21 +196,26 @@ async function loadAndRender() {
   renderAll();
 }
 
-// ===== FORM HANDLERS =====
-function clearForm(){
+// ============
+// Form events
+// ============
+function clearForm() {
   f_title.value = "";
   f_owner.value = "";
   f_category.value = "drawings";
   f_added.value = todayISO();
   f_notes.value = "";
 }
+
 toggleFormBtn.onclick = () => {
   if (!addForm.style.display || addForm.style.display === "none") {
-    clearForm(); show(addForm);
+    clearForm();
+    show(addForm);
   } else {
     hide(addForm);
   }
 };
+
 toggleCompletedBtn.onclick = () => {
   const hidden = !completedSection.style.display || completedSection.style.display === "none";
   if (hidden) {
@@ -203,6 +227,7 @@ toggleCompletedBtn.onclick = () => {
     toggleCompletedBtn.textContent = "Show Completed";
   }
 };
+
 cancelFormBtn.onclick = () => hide(addForm);
 
 saveTaskBtn.onclick = async () => {
@@ -213,7 +238,7 @@ saveTaskBtn.onclick = async () => {
     id: uid(),
     title,
     owner: (f_owner.value || "").trim(),
-    category: f_category.value,
+    category: f_category.value, // drawings | write | review | other
     added: f_added.value || todayISO(),
     notes: (f_notes.value || "").trim(),
     done: false,
@@ -230,10 +255,9 @@ saveTaskBtn.onclick = async () => {
   }
 };
 
-// Auto-refresh for the smartboard
+// Auto-refresh for the smartboard view
 setInterval(loadAndRender, 15000);
 
 // Init
 f_added.value = todayISO();
 loadAndRender();
-
