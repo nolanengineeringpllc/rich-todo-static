@@ -1,9 +1,8 @@
-// ================================
-// Rich's To-Do (Google Sheets Sync + Smartboard Version)
-// ================================
+/* =========================
+   Rich's To-Do — Frontend
+   ========================= */
 
-// ===== CONFIG =====
-// Replace with YOUR Google Apps Script Web App URL:
+/* --- CONFIG (your live Web App URL) --- */
 const API_URL = "https://script.google.com/macros/s/AKfycbzD6OBdvGw6SW_g024ot2_k-OLiJzaOr-srfhyGWSrdyrj6swQLNzJb2FgvD-5jOcdPww/exec";
 
 const LABELS = {
@@ -13,71 +12,72 @@ const LABELS = {
   other: "Other",
 };
 
-// ===== DOM ELEMENTS =====
-const toggleFormBtn = document.getElementById("toggleFormBtn");
-const toggleCompletedBtn = document.getElementById("toggleCompletedBtn");
-const completedSection = document.getElementById("completedSection");
+/* --- DOM --- */
+const toggleFormBtn       = document.getElementById("toggleFormBtn");
+const toggleCompletedBtn  = document.getElementById("toggleCompletedBtn");
+const completedSection    = document.getElementById("completedSection");
+
 const listEls = {
-  drawings: document.getElementById("list_drawings"),
-  write: document.getElementById("list_write"),
-  review: document.getElementById("list_review"),
-  other: document.getElementById("list_other"),
+  drawings:  document.getElementById("list_drawings"),
+  write:     document.getElementById("list_write"),
+  review:    document.getElementById("list_review"),
+  other:     document.getElementById("list_other"),
   completed: document.getElementById("list_completed"),
 };
-const addForm = document.getElementById("addForm");
-const f_title = document.getElementById("f_title");
-const f_owner = document.getElementById("f_owner");
-const f_category = document.getElementById("f_category");
-const f_added = document.getElementById("f_added");
-const f_notes = document.getElementById("f_notes");
+
+const addForm     = document.getElementById("addForm");
+const f_title     = document.getElementById("f_title");
+const f_owner     = document.getElementById("f_owner");
+const f_category  = document.getElementById("f_category");
+const f_added     = document.getElementById("f_added");
+const f_notes     = document.getElementById("f_notes");
 const saveTaskBtn = document.getElementById("saveTaskBtn");
 const cancelFormBtn = document.getElementById("cancelFormBtn");
 
-// ===== STATE / UTILS =====
+/* --- STATE/UTILS --- */
 let tasks = [];
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => new Date().toISOString().slice(0,10);
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
-function show(el) { el.style.display = ""; }
-function hide(el) { el.style.display = "none"; }
-function escapeHtml(s) {
-  return String(s || "").replace(/[&<>"']/g, c =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
-  );
+function show(el){ el.style.display = ""; }
+function hide(el){ el.style.display = "none"; }
+function escapeHtml(s){
+  return String(s || "").replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]
+  ));
 }
 
-// ===== API (GET-based, works with Apps Script safely) =====
-async function apiList() {
-  const res = await fetch(`${API_URL}?action=list&v=${Date.now()}`, { method: "GET" });
-  if (!res.ok) throw new Error("list failed");
-  return res.json();
+/* --- API (send text/plain to avoid CORS preflight) --- */
+async function api(action, payload = {}) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action, ...payload })
+  });
+
+  let json;
+  try { json = await res.json(); }
+  catch { json = { ok: false, message: "Server returned invalid JSON" }; }
+
+  if (!json.ok) {
+    const msg = json.message || "Request failed";
+    throw new Error(msg);
+  }
+  return json.data;
 }
 
-async function apiAdd(task) {
-  const url = `${API_URL}?action=add&task=${encodeURIComponent(JSON.stringify(task))}&_=${Date.now()}`;
-  const res = await fetch(url, { method: "GET" });
-  try { return await res.json(); } catch { return { ok: true }; }
-}
+const apiList   = ()        => api("list");
+const apiAdd    = (task)    => api("add",    { task });
+const apiToggle = (id)      => api("toggle", { id });
+const apiDelete = (id)      => api("delete", { id });
 
-async function apiToggle(id) {
-  const url = `${API_URL}?action=toggle&id=${encodeURIComponent(id)}&_=${Date.now()}`;
-  const res = await fetch(url, { method: "GET" });
-  try { return await res.json(); } catch { return { ok: true }; }
-}
-
-async function apiDelete(id) {
-  const url = `${API_URL}?action=delete&id=${encodeURIComponent(id)}&_=${Date.now()}`;
-  const res = await fetch(url, { method: "GET" });
-  try { return await res.json(); } catch { return { ok: true }; }
-}
-
-// ===== RENDER =====
+/* --- RENDER --- */
 function renderOpenList(key) {
   const el = listEls[key];
   el.innerHTML = "";
 
   const items = tasks
     .filter(t => !t.done && t.category === key)
-    .sort((a, b) => String(a.added).localeCompare(String(b.added)));
+    .sort((a,b) => String(a.added).localeCompare(String(b.added)));
 
   if (items.length === 0) {
     const empty = document.createElement("div");
@@ -105,16 +105,18 @@ function renderOpenList(key) {
         <button class="btn" data-action="delete" style="margin-left:6px;background:#ef4444">🗑</button>
       </div>
     `;
+
     row.querySelector('[data-action="done"]').onclick = async () => {
-      await apiToggle(t.id);
-      await loadAndRender();
+      try { await apiToggle(t.id); await loadAndRender(); }
+      catch (e) { alert("Toggle failed: " + e.message); }
     };
+
     row.querySelector('[data-action="delete"]').onclick = async () => {
-      if (confirm("Delete this task?")) {
-        await apiDelete(t.id);
-        await loadAndRender();
-      }
+      if (!confirm("Delete this task?")) return;
+      try { await apiDelete(t.id); await loadAndRender(); }
+      catch (e) { alert("Delete failed: " + e.message); }
     };
+
     el.appendChild(row);
   }
 }
@@ -125,7 +127,7 @@ function renderCompleted() {
 
   const items = tasks
     .filter(t => t.done)
-    .sort((a, b) => String(b.completed).localeCompare(String(a.completed)));
+    .sort((a,b) => String(b.completed).localeCompare(String(a.completed)));
 
   if (items.length === 0) {
     const empty = document.createElement("div");
@@ -163,18 +165,19 @@ function renderAll() {
   if (completedSection.style.display !== "none") renderCompleted();
 }
 
-// ===== LOAD / REFRESH =====
+/* --- LOAD/REFRESH --- */
 async function loadAndRender() {
   try {
     tasks = await apiList();
   } catch (e) {
-    console.error("List failed:", e);
+    console.error(e);
     tasks = [];
+    alert("Could not load tasks: " + e.message);
   }
   renderAll();
 }
 
-// ===== FORM HANDLERS =====
+/* --- FORM HANDLERS --- */
 function clearForm() {
   f_title.value = "";
   f_owner.value = "";
@@ -185,8 +188,7 @@ function clearForm() {
 
 toggleFormBtn.onclick = () => {
   if (!addForm.style.display || addForm.style.display === "none") {
-    clearForm();
-    show(addForm);
+    clearForm(); show(addForm);
   } else {
     hide(addForm);
   }
@@ -226,14 +228,13 @@ saveTaskBtn.onclick = async () => {
     hide(addForm);
     await loadAndRender();
   } catch (e) {
-    console.error(e);
-    alert("Could not save task. Check permissions and try again.");
+    alert("Could not save task: " + e.message);
   }
 };
 
-// ===== AUTO REFRESH (for Smartboard) =====
+/* --- SMARTBOARD AUTO REFRESH --- */
 setInterval(loadAndRender, 15000);
 
-// ===== INIT =====
+/* --- INIT --- */
 f_added.value = todayISO();
 loadAndRender();
