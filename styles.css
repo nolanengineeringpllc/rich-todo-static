@@ -1,65 +1,212 @@
-body {
-  font-family: Arial, sans-serif;
-  background: #f9fafb;
-  margin: 0;
-  padding: 0;
-  color: #111;
+/* Nolan Engineering To-Do Dashboard Styles */
+/* Brand: Nolan Green #006341, dark hover #004d30, neutral grays */
+
+:root{
+  --brand:#006341;
+  --brand-hover:#004d30;
+  --bg:#f6f7f8;
+  --card:#ffffff;
+  --text:#1b1f23;
+  --muted:#6b7280;
+  --border:#e5e7eb;
+  --ok:#065f46;
+  --warn:#92400e;
+  --err:#7f1d1d;
 }
-.container {
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 20px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+
+*{ box-sizing:border-box; }
+
+html, body{
+  height:100%;
 }
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
 }
-.title {
-  font-size: 32px;
-  font-weight: bold;
-  color: #065f46;
+
+/* Layout */
+.container{
+  max-width:1100px;
+  margin:0 auto;
+  padding:0 16px;
 }
-.subtitle {
-  color: #6b7280;
-  font-size: 14px;
+
+/* Header / Footer */
+.site-header{
+  background:var(--brand);
+  color:#fff;
+  padding:16px 0;
+  box-shadow:0 2px 12px rgba(0,0,0,.08);
 }
-.btn {
-  background: #10b981;
-  color: white;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
+.header-inner{
+  display:flex;
+  align-items:center;
+  gap:12px;
 }
-.btn:hover {
-  background: #059669;
+.site-header h1{
+  font-size:1.25rem;
+  margin:0;
+  font-weight:700;
 }
-.tasks {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.badge{
+  background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.35);
+  color:#fff;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:.85rem;
 }
-.task {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #f3f4f6;
-  border-radius: 8px;
+
+.site-footer{
+  padding:24px 0 40px;
+  color:var(--muted);
+  text-align:center;
 }
-.task.done {
-  text-decoration: line-through;
-  color: #6b7280;
-  background: #e5e7eb;
+
+/* Cards */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px;
+  margin:16px 0 24px;
+  box-shadow:0 1px 6px rgba(0,0,0,.04);
 }
-input, select {
-  padding: 8px;
-  margin: 4px;
-  font-size: 14px;
+.card h2{
+  margin:0 0 12px;
+  font-size:1.15rem;
+}
+.card-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:8px;
+}
+
+/* Status banner */
+.status{
+  display:block;
+  padding:10px 12px;
+  border-radius:10px;
+  margin:18px 0;
+  background:#ecfeff;
+  border:1px solid #bae6fd;
+  color:#075985;
+}
+.status.ok{ background:#ecfdf5; border-color:#a7f3d0; color:var(--ok); }
+.status.warn{ background:#fffbeb; border-color:#fde68a; color:var(--warn); }
+.status.err{ background:#fef2f2; border-color:#fecaca; color:var(--err); }
+
+/* Form */
+.form-grid{
+  display:grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap:12px;
+}
+.field{
+  grid-column: span 4;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.field-notes{
+  grid-column: span 12;
+}
+.label{
+  font-weight:600;
+}
+.req{ color:#b91c1c; }
+input, textarea{
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  outline:none;
+  transition:border-color .15s ease, box-shadow .15s ease;
+  background:#fff;
+}
+input:focus, textarea:focus{
+  border-color:#9ca3af;
+  box-shadow:0 0 0 4px rgba(0,99,65,.12);
+}
+.actions-row{
+  grid-column: span 12;
+  display:flex;
+  gap:8px;
+  margin-top:4px;
+}
+
+/* Buttons */
+.btn{
+  appearance:none;
+  border:1px solid var(--border);
+  background:#fff;
+  color:var(--text);
+  padding:10px 14px;
+  border-radius:10px;
+  font-weight:600;
+  cursor:pointer;
+  transition:transform .04s ease, background .15s ease, border-color .15s ease;
+}
+.btn:hover{ background:#f2f4f7; }
+.btn:active{ transform: translateY(1px); }
+.btn.primary{
+  background:var(--brand);
+  color:#fff;
+  border-color:transparent;
+}
+.btn.primary:hover{ background:var(--brand-hover); }
+
+/* Table */
+.table-wrap{
+  width:100%;
+  overflow:auto;
+  border:1px solid var(--border);
+  border-radius:12px;
+}
+.table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:720px;
+}
+.table th, .table td{
+  padding:10px 12px;
+  border-bottom:1px solid var(--border);
+  vertical-align:top;
+}
+.table thead th{
+  background:#f8fafc;
+  font-weight:700;
+}
+.col-actions{
+  width:170px;
+}
+tbody tr.done td{
+  color:#6b7280;
+  text-decoration:line-through;
+}
+
+/* Row action buttons inside table */
+.table button{
+  margin-right:6px;
+}
+.table button.delete{
+  background:#b91c1c;
+  color:#fff;
+  border-color:#b91c1c;
+}
+.table button.delete:hover{
+  background:#991b1b;
+  border-color:#991b1b;
+}
+
+/* Helpers */
+.muted{ color:var(--muted); }
+
+/* Responsive */
+@media (max-width: 720px){
+  .field{ grid-column: span 12; }
+  .col-actions{ width:auto; }
 }
