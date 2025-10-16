@@ -58,10 +58,10 @@ async function loadTasks() {
   }
 }
 
-async function addTask(title, owner, category, notes) {
+async function addTask(title, owner, category, added, notes) {
   try {
     const id = (crypto?.randomUUID?.() || String(Date.now()));
-    const added = new Date().toISOString().slice(0, 10);
+    // 'added' is already yyyy-mm-dd from the date input (or fallback today)
     await apiPost({ action: "add", task: { id, title, owner, category, added, notes } });
     await loadTasks();
   } catch (err) {
@@ -161,7 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const tempId = (crypto?.randomUUID?.() || String(Date.now()));
       await apiPost({ action:"add", task:{
         id: tempId, title:"_ping_", owner:"check", category:"Other",
-        added: new Date().toISOString().slice(0,10), notes:"diagnostic"
+        added: todayLocalISO(), notes:"diagnostic"
       }});
       await apiPost({ action:"delete", id: tempId });
       console.log("Backend POST ok.");
@@ -169,6 +169,12 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Backend POST failed:", e);
     }
   });
+
+  // Default the Date field to today (local yyyy-mm-dd)
+  const dateInput = document.getElementById("addedDate");
+  if (dateInput && !dateInput.value) {
+    dateInput.value = todayLocalISO();
+  }
 
   // Chips set the hidden category input
   const catInput = document.getElementById("category");
@@ -188,10 +194,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const owner = document.getElementById("owner").value.trim();
     const category = document.getElementById("category").value;
     const notes = document.getElementById("notes").value.trim();
+
+    const addedInput = document.getElementById("addedDate");
+    const added = (addedInput?.value || todayLocalISO()); // yyyy-mm-dd
+
     if (!title) return alert("Please enter a title.");
-    addTask(title, owner, category, notes);
+    addTask(title, owner, category, added, notes);
     form.reset();
-    // reset chips to Other & hidden category
+
+    // reset date to today + chips to Other & hidden category
+    if (dateInput) dateInput.value = todayLocalISO();
     document.querySelectorAll(".chip").forEach((b) => b.classList.remove("active"));
     document.querySelector('.chip[data-cat="Other"]').classList.add("active");
     catInput.value = "Other";
@@ -199,3 +211,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadTasks();
 });
+
+// Local date in yyyy-mm-dd without timezone skew
+function todayLocalISO() {
+  const tzOffsetMs = new Date().getTimezoneOffset() * 60000;
+  return new Date(Date.now() - tzOffsetMs).toISOString().slice(0,10);
+}
