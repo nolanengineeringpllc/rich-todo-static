@@ -1,8 +1,7 @@
-// ========= API URL from config.js =========
-// Make sure index.html loads ./config.js BEFORE this file.
-const API_URL = (window && window.API_URL) ? window.API_URL : "";
+// API URL comes from config.js (loaded before this file)
+const API_URL = window.API_URL;
 
-// Four board columns
+// Four columns
 const CATS = [
   "Drawings to Review",
   "Reports to Write",
@@ -10,30 +9,27 @@ const CATS = [
   "Other",
 ];
 
-// ========= Low-level API helpers (with detailed logging) =========
+// ---------- HTTP helpers (POST uses simple content-type to avoid preflight) ----------
 async function apiGet() {
-  if (!API_URL) throw new Error("API_URL not set. Check config.js is loaded before app.js");
   const res = await fetch(API_URL);
   const raw = await res.text();
   let json;
   try { json = JSON.parse(raw); }
   catch (e) {
-    console.error("GET: failed to parse JSON. Raw:", raw);
-    throw new Error("Backend did not return valid JSON");
+    console.error("GET parse error. Raw:", raw);
+    throw new Error("Backend did not return valid JSON.");
   }
   if (!json.ok) {
-    console.error("GET: backend error payload:", json);
+    console.error("GET error payload:", json);
     throw new Error(json.error || "API error");
   }
   return json.data;
 }
 
 async function apiPost(body) {
-  if (!API_URL) throw new Error("API_URL not set. Check config.js is loaded before app.js");
   const res = await fetch(API_URL, {
     method: "POST",
-    // IMPORTANT: Use a "simple" content-type to avoid CORS preflight with Apps Script
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    headers: { "Content-Type": "text/plain;charset=utf-8" }, // <-- avoids CORS preflight
     body: JSON.stringify(body),
   });
 
@@ -41,17 +37,17 @@ async function apiPost(body) {
   let json;
   try { json = JSON.parse(raw); }
   catch (e) {
-    console.error("POST: failed to parse JSON. Raw:", raw);
-    throw new Error("Backend did not return valid JSON");
+    console.error("POST parse error. Raw:", raw);
+    throw new Error("Backend did not return valid JSON.");
   }
   if (!json.ok) {
-    console.error("POST: backend error payload:", json);
+    console.error("POST error payload:", json);
     throw new Error(json.error || "API error");
   }
   return json.data;
 }
 
-// ========= CRUD =========
+// ---------- CRUD ----------
 async function loadTasks() {
   try {
     const tasks = await apiGet();
@@ -75,25 +71,17 @@ async function addTask(title, owner, category, notes) {
 }
 
 async function toggleTask(id) {
-  try {
-    await apiPost({ action: "toggle", id });
-    await loadTasks();
-  } catch (err) {
-    console.error("Toggle error:", err);
-  }
+  try { await apiPost({ action: "toggle", id }); await loadTasks(); }
+  catch (err) { console.error("Toggle error:", err); }
 }
 
 async function deleteTask(id) {
   if (!confirm("Delete this task?")) return;
-  try {
-    await apiPost({ action: "delete", id });
-    await loadTasks();
-  } catch (err) {
-    console.error("Delete error:", err);
-  }
+  try { await apiPost({ action: "delete", id }); await loadTasks(); }
+  catch (err) { console.error("Delete error:", err); }
 }
 
-// ========= Rendering (4-column board + completed drawer) =========
+// ---------- Render 4-column board ----------
 function renderBoard(all) {
   const buckets = {
     "Drawings to Review": [],
@@ -118,8 +106,6 @@ function renderBoard(all) {
 
 function fillList(id, items, completed = false) {
   const ul = document.getElementById(id);
-  if (!ul) return;
-
   ul.innerHTML = "";
   if (!items.length) {
     const li = document.createElement("li");
@@ -135,9 +121,7 @@ function fillList(id, items, completed = false) {
     li.innerHTML = `
       <div>
         <div><strong>${escapeHtml(t.title)}</strong></div>
-        <div class="meta">
-          ${escapeHtml(t.owner || "")} • ${escapeHtml(t.category || "")} • ${escapeHtml(t.added || "")}
-        </div>
+        <div class="meta">${escapeHtml(t.owner || "")} • ${escapeHtml(t.category || "")} • ${escapeHtml(t.added || "")}</div>
         ${t.notes ? `<div class="meta">${escapeHtml(t.notes)}</div>` : ""}
       </div>
       <div class="actions">
@@ -154,25 +138,19 @@ function fillList(id, items, completed = false) {
 
 function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, (m) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[m]));
 }
 
-// ========= DOM wiring =========
+// ---------- DOM wiring ----------
 document.addEventListener("DOMContentLoaded", () => {
-  // Optional header buttons (safe if not present)
-  const printBtn = document.getElementById("printBtn");
-  if (printBtn) printBtn.addEventListener("click", () => window.print());
+  // Print
+  document.getElementById("printBtn").addEventListener("click", () => window.print());
 
-  const checkBtn = document.getElementById("checkBtn");
-  if (checkBtn) checkBtn.addEventListener("click", async () => {
+  // Backend check (GET + quick add/delete ping)
+  document.getElementById("checkBtn").addEventListener("click", async () => {
     try {
       const data = await apiGet();
-      console.log("Backend GET ok. Task count:", data.length);
       alert("Backend GET ok. Current tasks: " + data.length);
     } catch (e) {
       console.error("Backend GET failed:", e);
@@ -181,53 +159,43 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     try {
       const tempId = (crypto?.randomUUID?.() || String(Date.now()));
-      await apiPost({
-        action: "add",
-        task: {
-          id: tempId,
-          title: "_ping_",
-          owner: "check",
-          category: "Other",
-          added: new Date().toISOString().slice(0, 10),
-          notes: "diagnostic",
-        },
-      });
-      await apiPost({ action: "delete", id: tempId });
-      console.log("Backend POST add/delete ok.");
+      await apiPost({ action:"add", task:{
+        id: tempId, title:"_ping_", owner:"check", category:"Other",
+        added: new Date().toISOString().slice(0,10), notes:"diagnostic"
+      }});
+      await apiPost({ action:"delete", id: tempId });
+      console.log("Backend POST ok.");
     } catch (e) {
       console.error("Backend POST failed:", e);
     }
   });
 
-  // Category chips drive the (possibly hidden) <select id="category">
-  const catSelect = document.getElementById("category");
+  // Chips set the hidden category input
+  const catInput = document.getElementById("category");
   document.querySelectorAll(".chip").forEach((btn) => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".chip").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      if (catSelect) catSelect.value = btn.dataset.cat;
+      catInput.value = btn.dataset.cat;
     });
   });
 
   // Add form
   const form = document.getElementById("taskForm");
-  if (form) {
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const title = document.getElementById("title").value.trim();
-      const owner = document.getElementById("owner").value.trim();
-      const category = (document.getElementById("category")?.value) || "Other";
-      const notes = document.getElementById("notes").value.trim();
-      if (!title) return alert("Please enter a title.");
-      addTask(title, owner, category, notes);
-      form.reset();
-      // reset chips to "Other"
-      document.querySelectorAll(".chip").forEach((b) => b.classList.remove("active"));
-      const otherChip = document.querySelector('.chip[data-cat="Other"]');
-      if (otherChip) otherChip.classList.add("active");
-      if (catSelect) catSelect.value = "Other";
-    });
-  }
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const title = document.getElementById("title").value.trim();
+    const owner = document.getElementById("owner").value.trim();
+    const category = document.getElementById("category").value;
+    const notes = document.getElementById("notes").value.trim();
+    if (!title) return alert("Please enter a title.");
+    addTask(title, owner, category, notes);
+    form.reset();
+    // reset chips to Other & hidden category
+    document.querySelectorAll(".chip").forEach((b) => b.classList.remove("active"));
+    document.querySelector('.chip[data-cat="Other"]').classList.add("active");
+    catInput.value = "Other";
+  });
 
   loadTasks();
 });
