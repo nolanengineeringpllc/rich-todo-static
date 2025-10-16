@@ -1,46 +1,55 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Nolan Engineering • To-Do Dashboard</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Nolan Engineering • To-Do Board</title>
+  <link rel="stylesheet" href="./styles.css"/>
 </head>
 <body>
   <header class="site-header">
     <div class="container header-inner">
-      <h1>Nolan Engineering • To-Do Dashboard</h1>
+      <h1>Nolan Engineering • To-Do Board</h1>
       <span class="badge">Live</span>
     </div>
   </header>
 
   <main class="container">
-    <!-- Status / error messages -->
-    <div id="status" class="status" aria-live="polite" hidden></div>
-
-    <!-- Add Task Form -->
+    <!-- Add Task -->
     <section class="card">
       <h2>Add a Task</h2>
       <form id="taskForm" class="form-grid">
         <label class="field">
           <span class="label">Title <span class="req">*</span></span>
-          <input type="text" id="title" placeholder="e.g., Call client about roof framing" required />
+          <input type="text" id="title" placeholder="e.g., Review steel shop drawings" required/>
         </label>
 
         <label class="field">
           <span class="label">Owner</span>
-          <input type="text" id="owner" placeholder="e.g., Richard" />
+          <input type="text" id="owner" placeholder="e.g., Richard"/>
         </label>
 
         <label class="field">
           <span class="label">Category</span>
-          <input type="text" id="category" placeholder="e.g., ops, drafting, inspection" />
+          <select id="category">
+            <option value="Drawings to Review">Drawings to Review</option>
+            <option value="Reports to Write">Reports to Write</option>
+            <option value="Reports to Review">Reports to Review</option>
+            <option value="Other" selected>Other</option>
+          </select>
         </label>
 
         <label class="field field-notes">
           <span class="label">Notes</span>
           <textarea id="notes" rows="2" placeholder="Optional notes…"></textarea>
         </label>
+
+        <div class="chips">
+          <button type="button" class="chip" data-cat="Drawings to Review">Drawings to Review</button>
+          <button type="button" class="chip" data-cat="Reports to Write">Reports to Write</button>
+          <button type="button" class="chip" data-cat="Reports to Review">Reports to Review</button>
+          <button type="button" class="chip" data-cat="Other">Other</button>
+        </div>
 
         <div class="actions-row">
           <button type="submit" class="btn primary">Add Task</button>
@@ -49,32 +58,33 @@
       </form>
     </section>
 
-    <!-- Tasks Table -->
-    <section class="card">
-      <div class="card-head">
-        <h2>Tasks</h2>
-        <button id="refreshBtn" class="btn" title="Refresh task list">Refresh</button>
+    <!-- 4-column board -->
+    <section class="board card">
+      <div class="board-grid">
+        <div class="col">
+          <h3>Drawings to Review</h3>
+          <ul id="col-drawings" class="list"></ul>
+        </div>
+        <div class="col">
+          <h3>Reports to Write</h3>
+          <ul id="col-write" class="list"></ul>
+        </div>
+        <div class="col">
+          <h3>Reports to Review</h3>
+          <ul id="col-review" class="list"></ul>
+        </div>
+        <div class="col">
+          <h3>Other</h3>
+          <ul id="col-other" class="list"></ul>
+        </div>
       </div>
-
-      <div class="table-wrap">
-        <table class="table" id="tasksTable" aria-describedby="tableHelp">
-          <thead>
-            <tr>
-              <th scope="col">Title</th>
-              <th scope="col">Owner</th>
-              <th scope="col">Category</th>
-              <th scope="col">Date Added</th>
-              <th scope="col">Notes</th>
-              <th scope="col" class="col-actions">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="tasksTableBody">
-            <!-- rows injected by app.js -->
-          </tbody>
-        </table>
-      </div>
-      <p id="tableHelp" class="muted">Click “Done” to toggle completion. “Delete” removes the task.</p>
     </section>
+
+    <!-- Completed drawer -->
+    <details class="card">
+      <summary>Completed</summary>
+      <ul id="completed" class="list list-completed"></ul>
+    </details>
   </main>
 
   <footer class="site-footer">
@@ -84,20 +94,5 @@
   </footer>
 
   <script src="./app.js"></script>
-  <script>
-    // Optional: simple status helper that app.js can call if you want later
-    const $status = document.getElementById('status');
-    function showStatus(msg, type = 'info', timeout = 2500) {
-      $status.textContent = msg;
-      $status.className = 'status ' + type;
-      $status.hidden = false;
-      if (timeout) setTimeout(() => ($status.hidden = true), timeout);
-    }
-
-    // Hook refresh button to reload tasks (app.js defines loadTasks)
-    document.getElementById('refreshBtn')?.addEventListener('click', () => {
-      if (typeof loadTasks === 'function') loadTasks();
-    });
-  </script>
 </body>
 </html>
